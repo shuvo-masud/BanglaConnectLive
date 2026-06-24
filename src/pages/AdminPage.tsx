@@ -16,56 +16,88 @@ export function AdminPage() {
   const canAccess = isOwner || isActiveAdmin;
 
   useEffect(() => {
-    if (canAccess) {
-      fetchData();
-    }
-  }, [canAccess]);
-
+  if (canAccess) {
+    fetchData();
+  }
+}, [canAccess, isOwner, isActiveAdmin]);
   const fetchData = async () => {
-    setLoading(true);
+  setLoading(true);
 
+  try {
     // Fetch pending mentors
-    const { data: mentors } = await supabase
+    const { data: mentors, error: mentorError } = await supabase
       .from('profiles')
       .select('*')
       .contains('roles', ['mentor'])
       .eq('mentor_status', 'pending')
       .order('created_at', { ascending: false });
 
-    if (mentors) setPendingMentors(mentors as Profile[]);
+    console.log('Pending mentors:', mentors);
+    console.log('Mentor error:', mentorError);
 
-    // Fetch pending admins (Owner only can see this)
+    if (mentors) {
+      setPendingMentors(mentors as Profile[]);
+    } else {
+      setPendingMentors([]);
+    }
+
+    // Fetch pending admins (Owner only)
     if (isOwner) {
-      const { data: admins } = await supabase
+      const { data: admins, error: adminError } = await supabase
         .from('profiles')
         .select('*')
         .contains('roles', ['admin'])
         .eq('admin_status', 'pending')
         .order('created_at', { ascending: false });
 
-      if (admins) setPendingAdmins(admins as Profile[]);
+      console.log('Pending admins:', admins);
+      console.log('Admin error:', adminError);
 
-      // Fetch all users for owner
-      const { data: users } = await supabase
+      if (admins) {
+        setPendingAdmins(admins as Profile[]);
+      } else {
+        setPendingAdmins([]);
+      }
+
+      // Fetch all users
+      const { data: users, error: userError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (users) setAllUsers(users as Profile[]);
+      console.log('Users:', users);
+      console.log('Users error:', userError);
+
+      if (users) {
+        setAllUsers(users as Profile[]);
+      } else {
+        setAllUsers([]);
+      }
     }
 
-    // Fetch open tickets
-    const { data: supportTickets } = await supabase
-      .from('support_tickets')
-      .select('*, user:profiles!user_id(*)')
-      .in('status', ['open', 'in_progress'])
-      .order('created_at', { ascending: false });
+    // Fetch tickets
+    const { data: supportTickets, error: ticketError } =
+      await supabase
+        .from('support_tickets')
+        .select('*, user:profiles!user_id(*)')
+        .in('status', ['open', 'in_progress'])
+        .order('created_at', { ascending: false });
 
-    if (supportTickets) setTickets(supportTickets as SupportTicket[]);
+    console.log('Tickets:', supportTickets);
+    console.log('Ticket error:', ticketError);
 
+    if (supportTickets) {
+      setTickets(supportTickets as SupportTicket[]);
+    } else {
+      setTickets([]);
+    }
+  } catch (err) {
+    console.error('Admin fetch failed:', err);
+  } finally {
     setLoading(false);
-  };
+  }
+};
 
   const handleMentorApproval = async (mentorId: string, approve: boolean) => {
     if (!isOwner) return;

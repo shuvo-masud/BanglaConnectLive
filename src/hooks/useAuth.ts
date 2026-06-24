@@ -5,34 +5,78 @@ import type { Profile, UserRole } from '../types';
 export function useAuth() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+
   const [loading, setLoading] = useState(true);
 
-  // ---------------------------
-  // FETCH PROFILE
-  // ---------------------------
+  // -----------------------------
+  // FETCH PROFILE (SAFE)
+  // -----------------------------
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error || !data) {
+      if (error) {
+        console.error('Profile fetch error:', error);
         setProfile(null);
-        return;
+        return null;
       }
 
-      setProfile(data as Profile);
+      setProfile(data || null);
+      return data || null;
+
     } catch (err) {
-      console.error('Profile fetch error:', err);
+      console.error('Profile exception:', err);
       setProfile(null);
+      return null;
     }
   };
 
-  // ---------------------------
-  // ROLE NORMALIZER (SINGLE SOURCE OF TRUTH)
-  // ---------------------------
+  // -----------------------------
+  // INIT SESSION (SINGLE SOURCE OF TRUTH)
+  // -----------------------------
+  useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      setLoading(true);
+
+      const { data, error } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+
+      if (error) {
+        console.error('Session error:', error);
+      }
+
+      const session = data.session;
+
+      if (!session?.user) {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      setUser(session.user);
+      await fetchProfile(session.user.id);
+
+      setLoading(false);
+    };
+
+    init();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // -----------------------------
+  // ROLE NORMALIZATION
+  // -----------------------------
   const getUserRoles = (profile: Profile | null): UserRole[] => {
     if (!profile) return ['student'];
 
@@ -43,9 +87,6 @@ export function useAuth() {
       : ['student'];
   };
 
-  // ---------------------------
-  // ACTIVE ROLES
-  // ---------------------------
   const activeRoles = useMemo(() => {
     if (!profile) return ['student'] as UserRole[];
 
@@ -70,7 +111,6 @@ export function useAuth() {
       roles.push('admin');
     }
 
-    // OWNER = absolute override (no dependency on roles[])
     if (profile.is_owner) {
       roles.push('owner');
     }
@@ -78,105 +118,43 @@ export function useAuth() {
     return roles.length ? roles : ['student'];
   }, [profile]);
 
-  // ---------------------------
-  // ROLE HELPERS
-  // ---------------------------
-  const hasRole = (role: UserRole) => activeRoles.includes(role);
+  const hasRole = (role: UserRole) =>
+    activeRoles.includes(role);
 
-  const isActiveMentor = useMemo(() => hasRole('mentor'), [activeRoles]);
-  const isActiveAdmin = useMemo(() => hasRole('admin'), [activeRoles]);
-  const isOwner = useMemo(() => profile?.is_owner === true, [profile]);
+  const isOwner = profile?.is_owner === true;
 
-  // ---------------------------
-  // PENDING STATES
-  // ---------------------------
-  const pendingMentorApproval = useMemo(() => {
-    if (!profile) return false;
+  const isActiveMentor = hasRole('mentor');
+  const isActiveAdmin = hasRole('admin');
 
-    const userRoles = getUserRoles(profile);
-
-    return (
-      userRoles.includes('mentor') &&
-      profile.mentor_status === 'pending'
-    );
-  }, [profile]);
-
-  const pendingAdminApproval = useMemo(() => {
-    if (!profile) return false;
-
-    const userRoles = getUserRoles(profile);
-
-    return (
-      userRoles.includes('admin') &&
-      profile.admin_status === 'pending'
-    );
-  }, [profile]);
-
-  // ---------------------------
-  // INIT AUTH SESSION
-  // ---------------------------
-  useEffect(() => {
-    let mounted = true;
-
-    const init = async () => {
-      setLoading(true);
-
-      const { data } = await supabase.auth.getSession();
-      const session = data?.session;
-
-      if (!mounted) return;
-
-      if (!session?.user) {
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-
-      setUser(session.user);
-      await fetchProfile(session.user.id);
-
-      setLoading(false);
-    };
-
-    init();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!session?.user) {
-          setUser(null);
-          setProfile(null);
-          return;
-        }
-
-        setUser(session.user);
-        await fetchProfile(session.user.id);
-      }
-    );
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, []);
-
-  // ---------------------------
+  // -----------------------------
   // AUTH ACTIONS
-  // ---------------------------
+  // -----------------------------
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
     return { error };
   };
 
-  const signUp = async (email: string, password: string, metadata?: any) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    metadata?: any,
+    redirectUrl?: string
+  ) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: metadata },
+      options: {
+        data: metadata,
+        emailRedirectTo:
+          redirectUrl ||
+          `${window.location.origin}/auth/callback`,
+      },
     });
+
     return { error };
   };
 
@@ -186,65 +164,28 @@ export function useAuth() {
     setProfile(null);
   };
 
-  // ---------------------------
-  // UPDATE PROFILE
-  // ---------------------------
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return { success: false, error: 'Not authenticated' };
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
 
     const { error } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', user.id);
 
-    if (error) return { success: false, error: error.message };
+    if (error) {
+      return { success: false, error: error.message };
+    }
 
     await fetchProfile(user.id);
-    return { success: true };
-  };
-
-  // ---------------------------
-  // APPROVAL ACTIONS (OWNER ONLY)
-  // ---------------------------
-  const approveUserRole = async (
-    targetUserId: string,
-    role: 'mentor' | 'admin'
-  ) => {
-    if (!isOwner) return { success: false, error: 'Only owner allowed' };
-
-    const field = role === 'mentor' ? 'mentor_status' : 'admin_status';
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ [field]: 'approved' })
-      .eq('id', targetUserId);
-
-    if (error) return { success: false, error: error.message };
 
     return { success: true };
   };
 
-  const rejectUserRole = async (
-    targetUserId: string,
-    role: 'mentor' | 'admin'
-  ) => {
-    if (!isOwner) return { success: false, error: 'Only owner allowed' };
-
-    const field = role === 'mentor' ? 'mentor_status' : 'admin_status';
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ [field]: 'rejected' })
-      .eq('id', targetUserId);
-
-    if (error) return { success: false, error: error.message };
-
-    return { success: true };
-  };
-
-  // ---------------------------
+  // -----------------------------
   // RETURN
-  // ---------------------------
+  // -----------------------------
   return {
     user,
     profile,
@@ -253,18 +194,13 @@ export function useAuth() {
     activeRoles,
     hasRole,
 
+    isOwner,
     isActiveMentor,
     isActiveAdmin,
-    isOwner,
-
-    pendingMentorApproval,
-    pendingAdminApproval,
 
     signIn,
     signUp,
     signOut,
     updateProfile,
-    approveUserRole,
-    rejectUserRole,
   };
 }

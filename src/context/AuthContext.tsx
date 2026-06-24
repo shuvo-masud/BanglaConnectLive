@@ -16,11 +16,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const isAdmin =
       profile?.role === 'admin' &&
-      profile?.admin_status === 'Approved';
+      profile?.admin_status === 'approved';
 
     const isMentor =
       profile?.roles?.includes('mentor') &&
-      profile?.mentor_status === 'Approved';
+      profile?.mentor_status === 'approved';
 
     const isStudent =
       profile?.role === 'student' || !profile?.role;

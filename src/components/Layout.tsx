@@ -19,7 +19,11 @@ export function Layout({ children }: LayoutProps) {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/');
+    setSidebarOpen(false); // important
+
+    navigate('/', { replace: true });
+
+    window.location.reload(); // ensures auth state reset
   };
 
   // Core BanglaConnect navigation
