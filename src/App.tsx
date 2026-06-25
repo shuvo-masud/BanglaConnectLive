@@ -20,7 +20,8 @@ import { AdminPage } from './pages/AdminPage';
 import { FeedPage } from './pages/FeedPage';
 import { EmergencyAidPage } from './pages/EmergencyAidPage';
 import { AuthGate } from './components/AuthGate';
-import CompleteProfilePage from './pages/CompleteProfilePage';
+import  CompleteProfilePage from './pages/CompleteProfilePage';
+import AuthCallback from "./pages/AuthCallback";
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
 
             <Route
               path="/dashboard"

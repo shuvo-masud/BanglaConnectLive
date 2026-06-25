@@ -23,7 +23,7 @@ export function useMentors(filters?: {
         .from('profiles')
         .select('*')
         .contains('roles', ['mentor'])
-        .eq('mentor_status', 'approved');
+        .eq('mentorship_available', true);
 
       if (filters?.country) {
         query = query.eq('country_of_residence', filters.country);
