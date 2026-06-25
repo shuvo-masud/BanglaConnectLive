@@ -35,6 +35,16 @@ export type AuthContextType = {
 
   signOut: () => Promise<{ error: any | null }>;
   updateProfile: (updates: any) => Promise<any>;
+
+  approveUserRole: (
+    userId: string,
+    role: "mentor" | "admin"
+  ) => Promise<void>;
+
+  rejectUserRole: (
+    userId: string,
+    role: "mentor" | "admin"
+  ) => Promise<void>;
 };
 
 /* -----------------------------
@@ -123,21 +133,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
        AUTH LISTENER
     ------------------------------ */
     const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const sessionUser = session?.user ?? null;
+  data: { subscription },
+} = supabase.auth.onAuthStateChange((event, session) => {
+  const sessionUser = session?.user ?? null;
 
-      setUser(sessionUser);
+  // 🔥 IMPORTANT: handle logout explicitly
+  if (event === 'SIGNED_OUT') {
+    setUser(null);
+    setProfile(null);
+    setLoading(false);
+    return;
+  }
 
-      if (!sessionUser) {
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
+  // 🔥 handle login/session restore
+  if (!sessionUser) {
+    setUser(null);
+    setProfile(null);
+    setLoading(false);
+    return;
+  }
 
-      setLoading(false);
-      fetchProfile(sessionUser.id);
-    });
+  setUser(sessionUser);
+  setLoading(false);
+
+  fetchProfile(sessionUser.id);
+});
 
     return () => {
       mounted = false;
@@ -218,6 +238,46 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return { success: !error, error };
   };
 
+
+
+  /*ADMIN Approval*/
+  const approveUserRole = async (userId: string, role: 'mentor' | 'admin') => {
+  const statusField =
+    role === 'mentor' ? 'mentor_status' : 'admin_status';
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      [statusField]: 'approved',
+    })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Approve error:', error);
+  }
+
+  await fetchProfile(userId);
+};
+
+const rejectUserRole = async (userId: string, role: 'mentor' | 'admin') => {
+  const statusField =
+    role === 'mentor' ? 'mentor_status' : 'admin_status';
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      [statusField]: 'rejected',
+    })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Reject error:', error);
+  }
+
+  await fetchProfile(userId);
+};
+
+
   /* -----------------------------
      PROVIDER VALUE
   ------------------------------ */
@@ -239,6 +299,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         signUp,
         signOut,
         updateProfile,
+        approveUserRole,
+        rejectUserRole,
       }}
     >
       {children}

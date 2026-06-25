@@ -478,31 +478,42 @@ function UserApprovalCard({
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <Icon className={`w-5 h-5 text-${colorClass}-600`} />
-            <span className={`px-2 py-0.5 rounded text-xs font-medium bg-${colorClass}-100 text-${colorClass}-700`}>
+
+            <span
+              className={`px-2 py-0.5 rounded text-xs font-medium bg-${colorClass}-100 text-${colorClass}-700`}
+            >
               Pending {type.charAt(0).toUpperCase() + type.slice(1)}
             </span>
           </div>
+
           <h3 className="font-semibold text-slate-900">{user.full_name}</h3>
           <p className="text-sm text-slate-600">{user.email}</p>
+
           <div className="mt-3 space-y-1 text-sm">
             <p className="text-slate-700">
-              <span className="font-medium">Country:</span> {user.country_of_residence}
+              <span className="font-medium">Country:</span>{' '}
+              {user.country_of_residence}
             </p>
-            {type === 'mentor' && user.specialty && user.specialty.length > 0 && (
+
+            {type === 'mentor' && user.specialty?.length > 0 && (
               <p className="text-slate-700">
-                <span className="font-medium">Specialties:</span> {user.specialty.join(', ')}
+                <span className="font-medium">Specialties:</span>{' '}
+                {user.specialty.join(', ')}
               </p>
             )}
+
             {user.bio && (
               <p className="text-slate-700">
                 <span className="font-medium">Bio:</span> {user.bio}
               </p>
             )}
           </div>
+
           <p className="text-xs text-slate-500 mt-3">
             Applied: {new Date(user.created_at).toLocaleDateString()}
           </p>
         </div>
+
         {canApprove && (
           <div className="flex gap-2">
             <button
@@ -512,6 +523,7 @@ function UserApprovalCard({
               <CheckCircle className="w-4 h-4" />
               Approve
             </button>
+
             <button
               onClick={onReject}
               className="flex items-center gap-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"

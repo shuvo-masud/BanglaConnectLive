@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { AlertCircle, Loader2, Globe } from 'lucide-react';
 import { useAuthContext } from '../context/AuthContext';
 import { COUNTRIES, MENTOR_SPECIALTIES } from '../utils/helpers';
 import type { UserRole } from '../types';
@@ -19,6 +19,12 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const toggleSpecialty = (s: string) => {
+    setSpecialties((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -26,6 +32,7 @@ export default function SignupPage() {
     if (!fullName || fullName.length < 2) return setError('Enter valid name');
     if (!email.includes('@')) return setError('Enter valid email');
     if (password.length < 6) return setError('Password too short');
+    if (!role) return setError('Select role');
     if (!country) return setError('Select country');
     if (role === 'mentor' && specialties.length === 0)
       return setError('Select at least one specialty');
@@ -33,13 +40,14 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      // ✅ FIXED: correct DB field mapping only
       const result = await signUp(email, password, {
         full_name: fullName,
         role,
         roles: [role],
         country_of_residence: country,
-        specialty: specialties,
+        specialty: role === 'mentor' ? specialties : [],
+        mentor_status: role === 'mentor' ? 'pending' : null,
+        admin_status: role === 'admin' ? 'pending' : null,
       });
 
       if (result?.error) {
@@ -47,116 +55,166 @@ export default function SignupPage() {
         return;
       }
 
-      // (optional) keep or remove based on your flow
-      navigate('/');
-
+      navigate('/dashboard', { replace: true });
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-md bg-white p-6 rounded-2xl shadow-md space-y-4"
-      >
-        <h1 className="text-2xl font-bold text-center">Create Account</h1>
+    <div className="min-h-screen bg-slate-50 flex flex-col">
 
-        <input
-          className="w-full border p-2 rounded"
-          placeholder="Full Name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-        />
+      {/* HEADER */}
+      <header className="py-6 px-4">
+        <div className="max-w-7xl mx-auto text-center">
 
-        <input
-          className="w-full border p-2 rounded"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <div className="w-9 h-9 bg-teal-600 rounded-lg flex items-center justify-center">
+              <Globe className="w-5 h-5 text-white" />
+            </div>
 
-        <input
-          type="password"
-          className="w-full border p-2 rounded"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+            <div className="flex flex-col items-center">
+              <span className="font-semibold text-lg text-slate-800">
+                BanglaConnect
+              </span>
 
-        <select
-          className="w-full border p-2 rounded"
-          value={role}
-          onChange={(e) => setRole(e.target.value as UserRole)}
+              <Link
+                to="/"
+                className="text-xs text-teal-600 hover:text-teal-700 mt-1"
+              >
+                ← Back to landing page
+              </Link>
+            </div>
+          </div>
+
+          <p className="text-slate-600 text-sm mt-2">
+            Join the Bangladeshi global community
+          </p>
+        </div>
+      </header>
+
+      {/* FORM */}
+      <main className="flex-1 flex items-center justify-center px-4 py-8">
+        <form
+          onSubmit={handleSubmit}
+          className="w-full max-w-lg bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4"
         >
-          <option value="">Select Role</option>
-          <option value="student">Student</option>
-          <option value="mentor">Mentor</option>
-          <option value="admin">Admin</option>
-        </select>
 
-        <select
-          className="w-full border p-2 rounded"
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-        >
-          <option value="">Select Country</option>
-          {COUNTRIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+          {/* ROLE */}
+          <div>
+            <label className="block text-sm font-medium mb-2 text-slate-700">
+              JOIN AS!
+            </label>
 
-        {role === 'mentor' && (
-          <div className="border p-3 rounded">
-            <p className="font-semibold mb-2">Select Specialties</p>
-
-            <div className="grid grid-cols-2 gap-2">
-              {MENTOR_SPECIALTIES.map((s) => (
-                <label key={s} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={specialties.includes(s)}
-                    onChange={(e) => {
-                      setSpecialties((prev) =>
-                        e.target.checked
-                          ? [...prev, s]
-                          : prev.filter((x) => x !== s)
-                      );
-                    }}
-                  />
-                  {s}
-                </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'student', label: 'Student' },
+                { value: 'mentor', label: 'Mentor' },
+                { value: 'admin', label: 'Admin' },
+              ].map((r) => (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => setRole(r.value as UserRole)}
+                  className={`p-3 rounded-lg border-2 text-center transition ${
+                    role === r.value
+                      ? 'border-teal-600 bg-teal-50'
+                      : 'border-slate-200'
+                  }`}
+                >
+                  <p className="text-sm font-medium">{r.label}</p>
+                </button>
               ))}
             </div>
           </div>
-        )}
 
-        {error && (
-          <div className="text-red-600 flex items-center gap-2 text-sm">
-            <AlertCircle size={16} />
-            {error}
-          </div>
-        )}
+          {/* SPECIALTIES */}
+          {role === 'mentor' && (
+            <div>
+              <p className="text-sm font-medium mb-2">Specialties</p>
 
-        <button
-          disabled={loading}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="animate-spin" size={16} />
-              Creating...
-            </>
-          ) : (
-            'Sign Up'
+              <div className="grid grid-cols-2 gap-2">
+                {MENTOR_SPECIALTIES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleSpecialty(s)}
+                    className={`p-2 rounded border text-sm ${
+                      specialties.includes(s)
+                        ? 'border-teal-600 bg-teal-50'
+                        : 'border-slate-200'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-        </button>
-      </form>
+
+          {/* INPUTS */}
+          <input
+            className="w-full border p-2 rounded-lg"
+            placeholder="Full Name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+
+          <input
+            className="w-full border p-2 rounded-lg"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <input
+            type="password"
+            className="w-full border p-2 rounded-lg"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <select
+            className="w-full border p-2 rounded-lg"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+          >
+            <option value="">Select Country</option>
+            {COUNTRIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+
+          {/* ERROR */}
+          {error && (
+            <div className="text-red-600 flex items-center gap-2 text-sm">
+              <AlertCircle size={16} />
+              {error}
+            </div>
+          )}
+
+          {/* SUBMIT */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2.5 bg-teal-600 text-white rounded-lg flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin w-4 h-4" />
+                Creating Account...
+              </>
+            ) : (
+              'Create Account'
+            )}
+          </button>
+        </form>
+      </main>
     </div>
   );
 }

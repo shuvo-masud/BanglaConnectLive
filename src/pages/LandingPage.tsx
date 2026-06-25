@@ -245,6 +245,7 @@ export function LandingPage() {
       <section className="py-16 lg:py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
+            
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
               Everything you need to succeed
             </h2>
@@ -278,6 +279,13 @@ export function LandingPage() {
       <section className="py-16 lg:py-24 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
+            <div className="mb-12 flex justify-center">
+             <img
+              src="/BC_landing.png"
+              alt="BanglaConnect Banner"
+              className="w-full max-w-5xl rounded-2xl shadow-lg object-cover"
+             />
+            </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
               How it works
             </h2>
