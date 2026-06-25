@@ -3,139 +3,296 @@ import { supabase } from '../integrations/supabase';
 import type { Profile, UserRole } from '../types';
 
 export function useAuth() {
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
 
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] =
+    useState<any>(null);
+
+  const [profile, setProfile] =
+    useState<Profile | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
 
   // -----------------------------
-  // FETCH PROFILE (SAFE)
+  // FETCH PROFILE
   // -----------------------------
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (
+    userId: string
+  ) => {
+
     try {
-      const { data, error } = await supabase
+
+      const {
+        data,
+        error
+      } =
+      await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
       if (error) {
-        console.error('Profile fetch error:', error);
+
+        console.error(
+          'Profile fetch error:',
+          error
+        );
+
         setProfile(null);
+
         return null;
       }
 
-      setProfile(data || null);
+      setProfile(
+        data || null
+      );
+
       return data || null;
 
     } catch (err) {
-      console.error('Profile exception:', err);
+
+      console.error(
+        'Profile exception:',
+        err
+      );
+
       setProfile(null);
+
       return null;
+
     }
+
   };
 
   // -----------------------------
-  // INIT SESSION (SINGLE SOURCE OF TRUTH)
+  // INIT + AUTH LISTENER
   // -----------------------------
   useEffect(() => {
+
     let mounted = true;
 
-    const init = async () => {
+    const init =
+      async () => {
+
       setLoading(true);
 
-      const { data, error } = await supabase.auth.getSession();
+      const {
+        data: {
+          session
+        },
+        error
+      } =
+      await supabase
+        .auth
+        .getSession();
 
-      if (!mounted) return;
+      if (!mounted)
+        return;
 
       if (error) {
-        console.error('Session error:', error);
+
+        console.error(
+          'Session error:',
+          error
+        );
+
       }
 
-      const session = data.session;
+      if (
+        !session?.user
+      ) {
 
-      if (!session?.user) {
         setUser(null);
+
         setProfile(null);
+
         setLoading(false);
+
         return;
+
       }
 
-      setUser(session.user);
-      await fetchProfile(session.user.id);
+      setUser(
+        session.user
+      );
+
+      await fetchProfile(
+        session.user.id
+      );
 
       setLoading(false);
+
     };
 
     init();
 
+    const {
+      data: {
+        subscription
+      }
+    } =
+    supabase.auth.onAuthStateChange(
+      async (
+        event,
+        session
+      ) => {
+
+        if (!mounted)
+          return;
+
+        if (
+          !session?.user
+        ) {
+
+          setUser(null);
+
+          setProfile(null);
+
+          return;
+        }
+
+        setUser(
+          session.user
+        );
+
+        await fetchProfile(
+          session.user.id
+        );
+      }
+    );
+
     return () => {
+
       mounted = false;
+
+      subscription.unsubscribe();
+
     };
+
   }, []);
 
   // -----------------------------
   // ROLE NORMALIZATION
   // -----------------------------
-  const getUserRoles = (profile: Profile | null): UserRole[] => {
-    if (!profile) return ['student'];
+  const getUserRoles = (
+    profile: Profile | null
+  ): UserRole[] => {
+
+    if (!profile)
+      return ['student'];
 
     return profile.roles?.length
       ? profile.roles
       : profile.role
-      ? [profile.role as UserRole]
+      ? [
+          profile.role as UserRole
+        ]
       : ['student'];
+
   };
 
-  const activeRoles = useMemo(() => {
-    if (!profile) return ['student'] as UserRole[];
+  const activeRoles =
+    useMemo(() => {
+
+    if (!profile)
+      return ['student'] as UserRole[];
 
     const roles: UserRole[] = [];
-    const userRoles = getUserRoles(profile);
 
-    if (userRoles.includes('student')) {
-      roles.push('student');
+    const userRoles =
+      getUserRoles(profile);
+
+    if (
+      userRoles.includes(
+        'student'
+      )
+    ) {
+      roles.push(
+        'student'
+      );
     }
 
     if (
-      userRoles.includes('mentor') &&
-      profile.mentor_status === 'approved'
+      userRoles.includes(
+        'mentor'
+      ) &&
+      profile.mentor_status ===
+      'approved'
     ) {
-      roles.push('mentor');
+
+      roles.push(
+        'mentor'
+      );
+
     }
 
     if (
-      userRoles.includes('admin') &&
-      profile.admin_status === 'approved'
+      userRoles.includes(
+        'admin'
+      ) &&
+      profile.admin_status ===
+      'approved'
     ) {
-      roles.push('admin');
+
+      roles.push(
+        'admin'
+      );
+
     }
 
-    if (profile.is_owner) {
-      roles.push('owner');
+    if (
+      profile.is_owner
+    ) {
+
+      roles.push(
+        'owner'
+      );
+
     }
 
-    return roles.length ? roles : ['student'];
+    return roles.length
+      ? roles
+      : ['student'];
+
   }, [profile]);
 
-  const hasRole = (role: UserRole) =>
-    activeRoles.includes(role);
+  const hasRole = (
+    role: UserRole
+  ) =>
+    activeRoles.includes(
+      role
+    );
 
-  const isOwner = profile?.is_owner === true;
+  const isOwner =
+    profile?.is_owner === true;
 
-  const isActiveMentor = hasRole('mentor');
-  const isActiveAdmin = hasRole('admin');
+  const isActiveMentor =
+    hasRole('mentor');
+
+  const isActiveAdmin =
+    hasRole('admin');
 
   // -----------------------------
   // AUTH ACTIONS
   // -----------------------------
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  const signIn = async (
+    email: string,
+    password: string
+  ) => {
 
-    return { error };
+    const { error } =
+      await supabase
+        .auth
+        .signInWithPassword({
+          email,
+          password
+        });
+
+    return {
+      error
+    };
+
   };
 
   const signUp = async (
@@ -144,49 +301,100 @@ export function useAuth() {
     metadata?: any,
     redirectUrl?: string
   ) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: metadata,
-        emailRedirectTo:
-          redirectUrl ||
-          `${window.location.origin}/auth/callback`,
-      },
-    });
 
-    return { error };
+    const { error } =
+      await supabase
+        .auth
+        .signUp({
+
+          email,
+          password,
+
+          options: {
+
+            emailRedirectTo:
+              redirectUrl ||
+              `${window.location.origin}/auth/callback`
+
+          }
+
+        });
+
+    return {
+      error
+    };
+
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const signOut =
+    async () => {
+
+    await supabase
+      .auth
+      .signOut();
+
     setUser(null);
+
     setProfile(null);
+
   };
 
-  const updateProfile = async (updates: Partial<Profile>) => {
+  const updateProfile =
+    async (
+      updates:
+      Partial<Profile>
+    ) => {
+
     if (!user) {
-      return { success: false, error: 'Not authenticated' };
+
+      return {
+        success:false,
+        error:
+        'Not authenticated'
+      };
+
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
+    const {
+      error
+    } =
+    await supabase
+      .from(
+        'profiles'
+      )
+      .update(
+        updates
+      )
+      .eq(
+        'id',
+        user.id
+      );
 
     if (error) {
-      return { success: false, error: error.message };
+
+      return {
+
+        success:false,
+
+        error:
+          error.message
+
+      };
+
     }
 
-    await fetchProfile(user.id);
+    await fetchProfile(
+      user.id
+    );
 
-    return { success: true };
+    return {
+      success:true
+    };
+
   };
 
-  // -----------------------------
-  // RETURN
-  // -----------------------------
   return {
+
     user,
     profile,
     loading,
@@ -201,6 +409,8 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
-    updateProfile,
+    updateProfile
+
   };
+
 }
