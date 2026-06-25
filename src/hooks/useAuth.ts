@@ -326,18 +326,30 @@ export function useAuth() {
 
   };
 
-  const signOut =
-    async () => {
+  const signOut = async () => {
+  try {
+    setLoading(true);
 
-    await supabase
-      .auth
-      .signOut();
+    const { error } = await supabase.auth.signOut();
 
+    if (error) {
+      console.error('SignOut error:', error);
+      return { error };
+    }
+
+    // IMPORTANT: clear ALL local auth state immediately
     setUser(null);
-
     setProfile(null);
+  
 
-  };
+    return { error: null };
+  } catch (err) {
+    console.error('Unexpected signOut error:', err);
+    return { error: err };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const updateProfile =
     async (
