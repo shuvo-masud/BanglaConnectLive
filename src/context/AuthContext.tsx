@@ -1,52 +1,247 @@
-import { createContext, useContext, ReactNode, useMemo } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useMemo,
+} from "react";
 
-type AuthType = ReturnType<typeof useAuth>;
+import { User } from "@supabase/supabase-js";
+import { supabase } from "../integrations/supabase";
+import type { Profile, UserRole } from "../types";
 
-const AuthContext = createContext<AuthType | null>(null);
+/* -----------------------------
+   TYPE
+------------------------------ */
+export type AuthContextType = {
+  user: User | null;
+  profile: Profile | null;
+  loading: boolean;
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const auth = useAuth();
+  activeRoles: UserRole[];
+  hasRole: (role: UserRole) => boolean;
 
-  // Normalize roles safely (THIS fixes your issue)
-  const enhancedAuth = useMemo(() => {
-    const profile = auth.profile;
+  isOwner: boolean;
+  isActiveMentor: boolean;
+  isActiveAdmin: boolean;
 
-    const isOwner = profile?.is_owner === true;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    metadata?: any
+  ) => Promise<{ error: any }>;
 
-    const isAdmin =
-      profile?.role === 'admin' &&
-      profile?.admin_status === 'approved';
+  signOut: () => Promise<{ error: any | null }>;
+  updateProfile: (updates: any) => Promise<any>;
+};
 
-    const isMentor =
-      profile?.roles?.includes('mentor') &&
-      profile?.mentor_status === 'approved';
+/* -----------------------------
+   CONTEXT
+------------------------------ */
+const AuthContext = createContext<AuthContextType | null>(null);
 
-    const isStudent =
-      profile?.role === 'student' || !profile?.role;
+/* -----------------------------
+   HOOK
+------------------------------ */
+export const useAuthContext = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("AuthProvider missing");
+  return ctx;
+};
 
-    return {
-      ...auth,
-      isOwner,
-      isAdmin,
-      isMentor,
-      isStudent,
+/* -----------------------------
+   PROVIDER
+------------------------------ */
+type AuthProviderProps = {
+  children: ReactNode;
+};
+
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  /* -----------------------------
+     PROFILE FETCH
+  ------------------------------ */
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Profile fetch error:", error);
+        setProfile(null);
+        return;
+      }
+
+      setProfile(data ?? null);
+    } catch (err) {
+      console.error("Profile exception:", err);
+      setProfile(null);
+    }
+  };
+
+  /* -----------------------------
+     INIT AUTH
+  ------------------------------ */
+  useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
+        if (error) {
+          console.error("Session error:", error);
+        }
+
+        const sessionUser = data.session?.user ?? null;
+
+        setUser(sessionUser);
+
+        if (sessionUser) {
+          await fetchProfile(sessionUser.id);
+        }
+      } catch (err) {
+        console.error("Auth init error:", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
-  }, [auth]);
 
+    init();
+
+    /* -----------------------------
+       AUTH LISTENER
+    ------------------------------ */
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sessionUser = session?.user ?? null;
+
+      setUser(sessionUser);
+
+      if (!sessionUser) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(false);
+      fetchProfile(sessionUser.id);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  /* -----------------------------
+     ROLE SYSTEM (FIXED)
+  ------------------------------ */
+  const activeRoles: UserRole[] = useMemo(() => {
+    if (!profile) return ["student"];
+
+    const roles: UserRole[] = [];
+
+    if (profile.role) roles.push(profile.role as UserRole);
+
+    if (profile.roles?.length) {
+      roles.push(...profile.roles);
+    }
+
+    return [...new Set(roles)];
+  }, [profile]);
+
+  const hasRole = (role: UserRole) => activeRoles.includes(role);
+
+  const isOwner = profile?.is_owner === true;
+  const isActiveMentor = hasRole("mentor");
+  const isActiveAdmin = hasRole("admin");
+
+  /* -----------------------------
+     AUTH ACTIONS
+  ------------------------------ */
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    return { error };
+  };
+
+  const signUp = async (
+    email: string,
+    password: string,
+    metadata?: any
+  ) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: metadata,
+      },
+    });
+
+    return { error };
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    setUser(null);
+    setProfile(null);
+
+    return { error };
+  };
+
+  const updateProfile = async (updates: any) => {
+    if (!user) return { success: false, error: "Not authenticated" };
+
+    const { error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", user.id);
+
+    if (!error) await fetchProfile(user.id);
+
+    return { success: !error, error };
+  };
+
+  /* -----------------------------
+     PROVIDER VALUE
+  ------------------------------ */
   return (
-    <AuthContext.Provider value={enhancedAuth}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+
+        activeRoles,
+        hasRole,
+
+        isOwner,
+        isActiveMentor,
+        isActiveAdmin,
+
+        signIn,
+        signUp,
+        signOut,
+        updateProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuthContext() {
-  const ctx = useContext(AuthContext);
-
-  if (!ctx) {
-    throw new Error('AuthContext must be used inside AuthProvider');
-  }
-
-  return ctx;
-}
+};

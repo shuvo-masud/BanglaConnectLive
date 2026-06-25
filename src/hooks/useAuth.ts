@@ -3,410 +3,213 @@ import { supabase } from '../integrations/supabase';
 import type { Profile, UserRole } from '../types';
 
 export function useAuth() {
-
-  const [user, setUser] =
-    useState<any>(null);
-
-  const [profile, setProfile] =
-    useState<Profile | null>(null);
-
-  const [loading, setLoading] =
-    useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // -----------------------------
-  // FETCH PROFILE
+  // PROFILE FETCH (SAFE)
   // -----------------------------
-  const fetchProfile = async (
-    userId: string
-  ) => {
-
+  const fetchProfile = async (userId: string) => {
     try {
-
-      const {
-        data,
-        error
-      } =
-      await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
       if (error) {
-
-        console.error(
-          'Profile fetch error:',
-          error
-        );
-
+        console.error('Profile fetch error:', error);
         setProfile(null);
-
-        return null;
+        return;
       }
 
-      setProfile(
-        data || null
-      );
-
-      return data || null;
-
+      setProfile(data ?? null);
     } catch (err) {
-
-      console.error(
-        'Profile exception:',
-        err
-      );
-
+      console.error('Profile exception:', err);
       setProfile(null);
-
-      return null;
-
     }
-
   };
 
   // -----------------------------
-  // INIT + AUTH LISTENER
+  // VERIFY EMAIL → BLUE TICK SYNC
+  // -----------------------------
+  const syncVerification = async (user: any) => {
+    try {
+      if (user?.email_confirmed_at) {
+        await supabase
+          .from('profiles')
+          .update({ is_verified: true })
+          .eq('id', user.id);
+      }
+    } catch (err) {
+      console.error('Verification sync error:', err);
+    }
+  };
+
+  // -----------------------------
+  // INIT AUTH
   // -----------------------------
   useEffect(() => {
-
     let mounted = true;
 
-    const init =
-      async () => {
+    const initAuth = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
 
-      setLoading(true);
+        if (!mounted) return;
 
-      const {
-        data: {
-          session
-        },
-        error
-      } =
-      await supabase
-        .auth
-        .getSession();
+        if (error) {
+          console.error('Session error:', error);
+        }
 
-      if (!mounted)
-        return;
+        const sessionUser = data?.session?.user ?? null;
 
-      if (error) {
+        setUser(sessionUser);
 
-        console.error(
-          'Session error:',
-          error
-        );
-
+        if (sessionUser) {
+          fetchProfile(sessionUser.id);
+          syncVerification(sessionUser);
+        }
+      } catch (err) {
+        console.error('Auth init error:', err);
+      } finally {
+        if (mounted) setLoading(false);
       }
+    };
 
-      if (
-        !session?.user
-      ) {
+    initAuth();
 
-        setUser(null);
+    // -----------------------------
+    // AUTH STATE CHANGES
+    // -----------------------------
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
 
+      const sessionUser = session?.user ?? null;
+
+      setUser(sessionUser);
+
+      if (!sessionUser) {
         setProfile(null);
-
         setLoading(false);
-
         return;
-
       }
-
-      setUser(
-        session.user
-      );
-
-      await fetchProfile(
-        session.user.id
-      );
 
       setLoading(false);
 
-    };
-
-    init();
-
-    const {
-      data: {
-        subscription
-      }
-    } =
-    supabase.auth.onAuthStateChange(
-      async (
-        event,
-        session
-      ) => {
-
-        if (!mounted)
-          return;
-
-        if (
-          !session?.user
-        ) {
-
-          setUser(null);
-
-          setProfile(null);
-
-          return;
-        }
-
-        setUser(
-          session.user
-        );
-
-        await fetchProfile(
-          session.user.id
-        );
-      }
-    );
+      fetchProfile(sessionUser.id);
+      syncVerification(sessionUser);
+    });
 
     return () => {
-
       mounted = false;
-
       subscription.unsubscribe();
-
     };
-
   }, []);
 
   // -----------------------------
-  // ROLE NORMALIZATION
+  // ROLE SYSTEM (FIXED)
   // -----------------------------
-  const getUserRoles = (
-    profile: Profile | null
-  ): UserRole[] => {
-
-    if (!profile)
-      return ['student'];
-
-    return profile.roles?.length
-      ? profile.roles
-      : profile.role
-      ? [
-          profile.role as UserRole
-        ]
-      : ['student'];
-
-  };
-
-  const activeRoles =
-    useMemo(() => {
-
-    if (!profile)
-      return ['student'] as UserRole[];
+  const activeRoles = useMemo(() => {
+    if (!profile) return ['student'] as UserRole[];
 
     const roles: UserRole[] = [];
 
-    const userRoles =
-      getUserRoles(profile);
-
-    if (
-      userRoles.includes(
-        'student'
-      )
-    ) {
-      roles.push(
-        'student'
-      );
+    if (profile.roles?.length) {
+      roles.push(...profile.roles);
     }
 
-    if (
-      userRoles.includes(
-        'mentor'
-      ) &&
-      profile.mentor_status ===
-      'approved'
-    ) {
-
-      roles.push(
-        'mentor'
-      );
-
+    if (profile.role) {
+      roles.push(profile.role as UserRole);
     }
 
-    if (
-      userRoles.includes(
-        'admin'
-      ) &&
-      profile.admin_status ===
-      'approved'
-    ) {
-
-      roles.push(
-        'admin'
-      );
-
-    }
-
-    if (
-      profile.is_owner
-    ) {
-
-      roles.push(
-        'owner'
-      );
-
-    }
-
-    return roles.length
-      ? roles
-      : ['student'];
-
+    return [...new Set(roles)];
   }, [profile]);
 
-  const hasRole = (
-    role: UserRole
-  ) =>
-    activeRoles.includes(
-      role
-    );
+  const hasRole = (role: UserRole) => activeRoles.includes(role);
 
-  const isOwner =
-    profile?.is_owner === true;
-
-  const isActiveMentor =
-    hasRole('mentor');
-
-  const isActiveAdmin =
-    hasRole('admin');
+  const isOwner = profile?.is_owner === true;
+  const isActiveMentor = hasRole('mentor');
+  const isActiveAdmin = hasRole('admin');
 
   // -----------------------------
   // AUTH ACTIONS
   // -----------------------------
-  const signIn = async (
-    email: string,
-    password: string
-  ) => {
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    const { error } =
-      await supabase
-        .auth
-        .signInWithPassword({
-          email,
-          password
-        });
-
-    return {
-      error
-    };
-
+    return { error };
   };
 
+  // CLEAN SIGNUP (NO CALLBACK DEPENDENCY)
   const signUp = async (
     email: string,
     password: string,
-    metadata?: any,
-    redirectUrl?: string
+    metadata?: any
   ) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: metadata,
+      },
+    });
 
-    const { error } =
-      await supabase
-        .auth
-        .signUp({
-
-          email,
-          password,
-
-          options: {
-
-            emailRedirectTo:
-              redirectUrl ||
-              `${window.location.origin}/auth/callback`
-
-          }
-
-        });
-
-    return {
-      error
-    };
-
+    return { error };
   };
 
   const signOut = async () => {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
 
-    if (error) {
-      console.error('SignOut error:', error);
-      return { error };
+      if (error) {
+        console.error('SignOut error:', error);
+        return { error };
+      }
+
+      setUser(null);
+      setProfile(null);
+
+      return { error: null };
+    } catch (err) {
+      console.error('Unexpected signOut error:', err);
+      return { error: err };
+    } finally {
+      setLoading(false);
     }
-
-    // IMPORTANT: clear ALL local auth state immediately
-    setUser(null);
-    setProfile(null);
-  
-
-    return { error: null };
-  } catch (err) {
-    console.error('Unexpected signOut error:', err);
-    return { error: err };
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const updateProfile =
-    async (
-      updates:
-      Partial<Profile>
-    ) => {
-
-    if (!user) {
-
-      return {
-        success:false,
-        error:
-        'Not authenticated'
-      };
-
-    }
-
-    const {
-      error
-    } =
-    await supabase
-      .from(
-        'profiles'
-      )
-      .update(
-        updates
-      )
-      .eq(
-        'id',
-        user.id
-      );
-
-    if (error) {
-
-      return {
-
-        success:false,
-
-        error:
-          error.message
-
-      };
-
-    }
-
-    await fetchProfile(
-      user.id
-    );
-
-    return {
-      success:true
-    };
-
   };
 
-  return {
+  const updateProfile = async (updates: Partial<Profile>) => {
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
 
+    const { error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    await fetchProfile(user.id);
+
+    return { success: true };
+  };
+
+  // -----------------------------
+  // RETURN
+  // -----------------------------
+  return {
     user,
     profile,
     loading,
@@ -421,8 +224,6 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
-    updateProfile
-
+    updateProfile,
   };
-
 }
