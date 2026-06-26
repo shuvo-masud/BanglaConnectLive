@@ -18,6 +18,8 @@ import { supabase } from '../integrations/supabase';
 import type { Profile, MentorshipRequest } from '../types';
 import { formatDate, getInitials } from '../utils/helpers';
 
+/* ========================= MAIN PAGE ========================= */
+
 export function DashboardPage() {
   const { profile, activeRoles, isOwner, isActiveAdmin, isActiveMentor } = useAuthContext();
 
@@ -36,7 +38,6 @@ export function DashboardPage() {
   const { savedMentors } = useSavedMentors(userId);
   const { requests } = useMentorshipRequests(userId, isMentor ? 'mentor' : 'student');
 
-  // FETCH SUGGESTIONS
   useEffect(() => {
     const fetchSuggestions = async () => {
       if (!profile || isMentor) {
@@ -76,27 +77,15 @@ export function DashboardPage() {
   const acceptedRequests = safeRequests.filter(r => r.status === 'accepted');
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 space-y-6">
+    <div className="min-h-screen bg-slate-50 p-6 space-y-6 relative">
 
-      {/* ================= HEADER ================= */}
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold text-slate-900">
-          Welcome, {profile.full_name || 'User'}
-        </h1>
-
-        <p className="text-slate-600 text-sm mt-1">
-          Roles: {roles.join(', ')}
-        </p>
-      </div>
-
-      {/* ================= ROLE CARDS (YOUR FIRST DASHBOARD) ================= */}
+      {/* ================= ROLE CARDS ================= */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
 
         {isStudent && (
           <div className="bg-white p-5 rounded-xl border">
             <BookOpen className="w-6 h-6 text-teal-600 mb-2" />
             <h2 className="font-semibold">Learning Dashboard</h2>
-            <p className="text-sm text-slate-600">Continue your learning journey</p>
           </div>
         )}
 
@@ -104,7 +93,6 @@ export function DashboardPage() {
           <div className="bg-white p-5 rounded-xl border">
             <Users className="w-6 h-6 text-purple-600 mb-2" />
             <h2 className="font-semibold">Mentor Panel</h2>
-            <p className="text-sm text-slate-600">Manage students & sessions</p>
           </div>
         )}
 
@@ -112,29 +100,21 @@ export function DashboardPage() {
           <div className="bg-white p-5 rounded-xl border">
             <Shield className="w-6 h-6 text-amber-600 mb-2" />
             <h2 className="font-semibold">Admin Panel</h2>
-            <p className="text-sm text-slate-600">Manage platform & users</p>
           </div>
         )}
 
         <div className="bg-white p-5 rounded-xl border">
           <UserCheck className="w-6 h-6 text-blue-600 mb-2" />
           <h2 className="font-semibold">Profile Status</h2>
-          <p className="text-sm text-slate-600">
-            {profile?.mentor_status === 'pending'
-              ? 'Mentor approval pending'
-              : 'Active'}
-          </p>
         </div>
       </div>
 
       {/* ================= STATS ================= */}
       <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4">
-
         <StatCard icon={<Users />} label="Mentors" value={safeMentors.length} />
         <StatCard icon={<Clock />} label="Pending" value={pendingRequests.length} />
         <StatCard icon={<Star />} label="Connections" value={acceptedRequests.length} />
         <StatCard icon={<Bookmark />} label="Saved" value={safeSaved.length} />
-
       </div>
 
       {/* ================= SUGGESTED ================= */}
@@ -159,7 +139,7 @@ export function DashboardPage() {
         )}
       </Section>
 
-      {/* ================= PENDING REQUESTS ================= */}
+      {/* ================= PENDING ================= */}
       {pendingRequests.length > 0 && (
         <Section title="Pending Requests">
           {pendingRequests.slice(0, 3).map((req) => (
@@ -174,12 +154,15 @@ export function DashboardPage() {
           ))}
         </Section>
       )}
-
     </div>
   );
 }
 
-/* ================= COMPONENTS ================= */
+/* ================= CIRCULAR MENU ================= */
+
+
+
+/* ================= OTHER COMPONENTS ================= */
 
 function StatCard({ icon, label, value }: any) {
   return (
@@ -225,15 +208,5 @@ function MentorCard({ mentor }: { mentor: Profile }) {
         </p>
       </div>
     </Link>
-  );
-}
-
-function MentorDashboard({ requests }: { requests: MentorshipRequest[] }) {
-  const pending = requests.filter(r => r.status === 'pending');
-  return (
-    <div className="p-6">
-      <h1 className="text-xl font-bold">Mentor Dashboard</h1>
-      <p className="text-slate-600">Pending requests: {pending.length}</p>
-    </div>
   );
 }

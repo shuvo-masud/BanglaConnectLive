@@ -84,6 +84,18 @@ export default function App() {
             />
 
             <Route
+             path="/emergency-aid"
+             element={
+              <ProtectedRoute>
+               <Layout>
+                <EmergencyAidPage />
+              </Layout>
+             </ProtectedRoute>
+  }
+/>
+
+
+            <Route
               path="/mentors/:id"
               element={
                 <ProtectedRoute>
