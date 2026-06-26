@@ -139,28 +139,48 @@ export function ChatPage() {
   };
 
   const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profile || !selectedConversation || !newMessage.trim() || sending) return;
+  e.preventDefault();
 
-    setSending(true);
-    const content = newMessage.trim();
-    setNewMessage('');
+  if (!profile || !selectedConversation || !newMessage.trim() || sending)
+    return;
 
-    const { error } = await supabase.from('messages').insert({
-      conversation_id: selectedConversation.id,
-      sender_id: profile.id,
-      content,
-    });
+  setSending(true);
 
-    if (!error) {
-      await supabase
-        .from('conversations')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', selectedConversation.id);
+  const content = newMessage.trim();
+  setNewMessage('');
+
+  try {
+    const { data: newMsg, error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: selectedConversation.id,
+        sender_id: profile.id,
+        content,
+      })
+      .select('*, sender:profiles(*)')
+      .single();
+
+    if (error) {
+      console.error('Send message error:', error);
+      return;
     }
+
+    if (newMsg) {
+      setMessages((prev) => [...prev, newMsg]);
+    }
+
+    await supabase
+      .from('conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', selectedConversation.id);
+
+  } catch (err) {
+    console.error('Unexpected error:', err);
+  } finally {
     setSending(false);
     inputRef.current?.focus();
-  };
+  }
+};
 
   const searchUsers = async (query: string) => {
     if (!query || query.length < 2) {

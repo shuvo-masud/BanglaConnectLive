@@ -252,39 +252,7 @@ const sendEmergency = async () => {
         )}
       </div>
 
-      {/* ================= LIST ================= */}
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        emergencies.map((e) => (
-          <div key={e.id} className="border p-3 mb-2 rounded">
 
-            <p className="font-semibold">
-              {e.message}
-            </p>
-
-            {/* PRIORITY DISPLAY (NEW) */}
-            <p className={getPriorityColor(e.priority)}>
-              Priority: {e.priority}
-            </p>
-
-            {e.file_url && (
-              <a
-                href={e.file_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-blue-500 text-sm block mt-1"
-              >
-                View Attachment
-              </a>
-            )}
-
-            <p className="text-sm text-gray-500 mt-1">
-              {new Date(e.created_at).toLocaleString()}
-            </p>
-          </div>
-        ))
-      )}
     </div>
   );
 }
