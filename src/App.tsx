@@ -237,6 +237,16 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/profile/:id"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                   <ProfilePage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/emergency-aid"
