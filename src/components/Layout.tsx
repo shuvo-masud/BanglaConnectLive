@@ -30,7 +30,7 @@ export function Layout({ children }: LayoutProps) {
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
     { icon: MessageCircle, label: 'Messages', path: '/chats' },
-    { icon: AlertTriangle, label: 'Emergency Aid', path: '/emergency-aid' },
+    { icon: AlertTriangle, label: 'Emergency', path: '/emergency-aid' },
   ];
 
   // Community & Career

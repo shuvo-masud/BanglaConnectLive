@@ -42,6 +42,25 @@ export function EmergencyAidPage() {
   const [selectedCity, setSelectedCity] = useState('');
   const [contact, setContact] = useState<EmergencyContact | null>(null);
 
+  //*Effect*//
+  useEffect(() => {
+  if (!selectedCountry) {
+    setCities([]);
+    return;
+  }
+
+  const filteredCities = contacts
+    .filter((c) => c.country === selectedCountry)
+    .map((c) => c.city);
+
+  const uniqueCities = [...new Set(filteredCities)];
+
+  setCities(uniqueCities);
+  setSelectedCity('');
+}, [selectedCountry, contacts]);
+
+
+
   // =========================
   // FETCH EMERGENCIES
   // =========================
