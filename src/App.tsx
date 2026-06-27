@@ -1,39 +1,47 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { Layout } from './components/Layout';
-import { LandingPage } from './pages/LandingPage';
-import { LoginPage } from './pages/LoginPage';
-import  SignupPage  from './pages/SignupPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { MentorsPage } from './pages/MentorsPage';
-import { MentorProfilePage } from './pages/MentorProfilePage';
-import { ProfilePage } from './pages/ProfilePage';
-import { MyConnectionsPage } from './pages/MyConnectionsPage';
-import { JobsPage } from './pages/JobsPage';
-import { BlogsPage } from './pages/BlogsPage';
-import { EventsPage } from './pages/EventsPage';
-import { ChatPage } from './pages/ChatPage';
-import { VaultPage } from './pages/VaultPage';
-import { SupportPage } from './pages/SupportPage';
-import { AdminPage } from './pages/AdminPage';
-import { FeedPage } from './pages/FeedPage';
-import { EmergencyAidPage } from './pages/EmergencyAidPage';
-import { AuthGate } from './components/AuthGate';
-import  CompleteProfilePage from './pages/CompleteProfilePage';
+
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import { AuthProvider } from "./context/AuthContext";
+import { AuthGate } from "./components/AuthGate";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { Layout } from "./components/Layout";
+
+import { LandingPage } from "./pages/LandingPage";
+import { LoginPage } from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
 import AuthCallback from "./pages/AuthCallback";
 
+import { DashboardPage } from "./pages/DashboardPage";
+import { MentorsPage } from "./pages/MentorsPage";
+import { MentorProfilePage } from "./pages/MentorProfilePage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { MyConnectionsPage } from "./pages/MyConnectionsPage";
+import { JobsPage } from "./pages/JobsPage";
+import { BlogsPage } from "./pages/BlogsPage";
+import { EventsPage } from "./pages/EventsPage";
+import { ChatPage } from "./pages/ChatPage";
+import { VaultPage } from "./pages/VaultPage";
+import { SupportPage } from "./pages/SupportPage";
+import { AdminPage } from "./pages/AdminPage";
+import { FeedPage } from "./pages/FeedPage";
+import { EmergencyAidPage } from "./pages/EmergencyAidPage";
+import CompleteProfilePage from "./pages/CompleteProfilePage";
+
+
 export default function App() {
+
   return (
     <AuthProvider>
       <BrowserRouter>
         <AuthGate>
           <Routes>
+            {/* Public */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
 
+            {/* Protected */}
             <Route
               path="/dashboard"
               element={
@@ -84,18 +92,6 @@ export default function App() {
             />
 
             <Route
-             path="/emergency-aid"
-             element={
-              <ProtectedRoute>
-               <Layout>
-                <EmergencyAidPage />
-              </Layout>
-             </ProtectedRoute>
-  }
-/>
-
-
-            <Route
               path="/mentors/:id"
               element={
                 <ProtectedRoute>
@@ -108,6 +104,17 @@ export default function App() {
 
             <Route
               path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ProfilePage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/profile/:id"
               element={
                 <ProtectedRoute>
                   <Layout>
@@ -237,16 +244,6 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/profile/:id"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                   <ProfilePage />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
 
             <Route
               path="/emergency-aid"
@@ -259,6 +256,7 @@ export default function App() {
               }
             />
 
+            {/* fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthGate>

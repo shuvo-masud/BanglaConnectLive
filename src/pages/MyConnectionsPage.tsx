@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuthContext } from '../context/AuthContext';
 import { supabase } from '../integrations/supabase';
@@ -177,7 +178,7 @@ export function MyConnectionsPage() {
   // =========================
   // HELPERS
   // =========================
-  const getUser = (c: any) =>
+  const getprofiles = (c: any) =>
     c.from_profile_id === profile?.id
       ? c.to_profile
       : c.from_profile;
@@ -281,9 +282,12 @@ export function MyConnectionsPage() {
               className="border p-3 rounded flex justify-between"
             >
               <div>
-                <p className="font-medium">
-                  {user?.full_name}
-                </p>
+                <Link
+                    to={`/profile/${user?.key}`}
+                    className="font-medium text-teal-600 hover:underline"
+                >
+                    {user?.full_name}
+                </Link>
                 <p className="text-sm text-gray-500">
                   wants to connect
                 </p>
@@ -330,7 +334,8 @@ export function MyConnectionsPage() {
         )}
 
         {myConnections.map((c) => {
-          const user = getUser(c);
+          const user = getprofiles(c);
+          const id = user?.id;
 
           return (
             <div
@@ -338,9 +343,13 @@ export function MyConnectionsPage() {
               className="border p-3 rounded flex justify-between"
             >
               <div>
-                <p className="font-medium">
-                  {user?.full_name}
-                </p>
+                  <Link
+                     to={`/profile/${id}`}
+                     className="font-medium text-teal-600 hover:underline"
+                  >
+                    {user?.full_name}
+                    {id}
+                  </Link>
                 <p className="text-sm text-gray-500">
                   Connected
                 </p>
