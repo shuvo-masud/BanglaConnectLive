@@ -26,6 +26,11 @@ import { AdminPage } from "./pages/AdminPage";
 import { FeedPage } from "./pages/FeedPage";
 import { EmergencyAidPage } from "./pages/EmergencyAidPage";
 import CompleteProfilePage from "./pages/CompleteProfilePage";
+import { JobDetailsPage } from './pages/JobDetailsPage';
+import { CreateEventPage } from './pages/CreateEventPage';
+import { EventDetailsPage } from './pages/EventDetailsPage';
+import { CreateVaultItemPage } from './pages/CreateVaultItemPage';
+import { VaultItemDetailsPage } from './pages/VaultItemDetailsPage';
 
 
 export default function App() {
@@ -57,6 +62,15 @@ export default function App() {
               path="/complete-profile"
               element={<CompleteProfilePage />}
             />
+            <Route path="/jobs/:id" element={<JobDetailsPage />} />
+            <Route path="/jobs" element={<JobsPage />} />
+            <Route path="/events" element={<EventsPage />} />
+            <Route path="/events/create" element={<CreateEventPage />} />
+            <Route path="/events/:id" element={<EventDetailsPage />} />
+            <Route path="/vault/create" element={<CreateVaultItemPage />} />
+            <Route path="/vault/:id" element={<VaultItemDetailsPage />} />
+
+
 
             <Route
               path="/feed"

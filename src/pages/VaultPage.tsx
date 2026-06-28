@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Folder, Plus, Lock, Globe, Search, FileText, Lightbulb, Briefcase, StickyNote } from 'lucide-react';
+import { 
+  Folder, Plus, Lock, Globe, Search, FileText, 
+  Lightbulb, Briefcase, StickyNote, ChevronRight,
+  ExternalLink, Paperclip
+} from 'lucide-react';
 import { supabase } from '../integrations/supabase';
 import { useAuthContext } from '../context/AuthContext';
 import type { VaultItem } from '../types';
@@ -15,15 +19,22 @@ export function VaultPage() {
 
   useEffect(() => {
     fetchItems();
-  }, [search, typeFilter, visibilityFilter]);
+  }, [search, typeFilter, visibilityFilter, profile?.id]);
 
   const fetchItems = async () => {
     if (!profile) return;
 
     setLoading(true);
+    // Fetching items: Your own items (any visibility) + Public items from others
     let query = supabase
       .from('vault_items')
-      .select('*, owner:profiles!owner_id(*)')
+      .select(`
+        *,
+        owner:profiles!owner_id (
+          full_name,
+          avatar_url
+        )
+      `)
       .or(`visibility.eq.public,owner_id.eq.${profile.id}`)
       .order('created_at', { ascending: false });
 
@@ -36,139 +47,149 @@ export function VaultPage() {
     }
 
     if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+      query = query.ilike('title', `%${search}%`);
     }
 
     const { data, error } = await query;
     if (!error && data) {
-      setItems(data as VaultItem[]);
+      setItems(data as any[]);
     }
     setLoading(false);
   };
 
-  const getTypeIcon = (type: string) => {
-    const icons: Record<string, any> = {
-      project: FileText,
-      idea: Lightbulb,
-      portfolio: Briefcase,
-      note: StickyNote,
-      other: Folder,
+  const getTypeStyles = (type: string) => {
+    const styles: Record<string, { icon: any, color: string, bg: string }> = {
+      project: { icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
+      idea: { icon: Lightbulb, color: 'text-amber-600', bg: 'bg-amber-50' },
+      portfolio: { icon: Briefcase, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+      note: { icon: StickyNote, color: 'text-purple-600', bg: 'bg-purple-50' },
+      other: { icon: Folder, color: 'text-slate-600', bg: 'bg-slate-50' },
     };
-    return icons[type] || Folder;
+    return styles[type] || styles.other;
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">My Vault</h1>
-          <p className="text-slate-600 mt-1">Your personal workspace for projects, ideas, and more</p>
+          <h1 className="text-3xl font-bold text-slate-900">The Vault</h1>
+          <p className="text-slate-600 mt-1">Showcase projects, store ideas, and share resources.</p>
         </div>
         {profile && (
           <Link
             to="/vault/create"
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all shadow-sm font-medium"
           >
-            <Plus className="w-4 h-4" />
-            Add Item
+            <Plus className="w-5 h-5" />
+            Add New Item
           </Link>
         )}
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-3">
+      {/* Filters Section */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-2 mb-8 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-2">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search vault..."
+              placeholder="Search by title..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-transparent border-0 focus:ring-0 text-slate-900"
             />
           </div>
+          <div className="h-10 w-px bg-slate-200 hidden md:block" />
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+            className="px-4 py-2.5 bg-transparent border-0 focus:ring-0 text-slate-600 font-medium cursor-pointer"
           >
-            <option value="all">All Types</option>
+            <option value="all">All Categories</option>
             <option value="project">Projects</option>
             <option value="idea">Ideas</option>
-            <option value="portfolio">Portfolio</option>
+            <option value="portfolio">Portfolios</option>
             <option value="note">Notes</option>
             <option value="other">Other</option>
           </select>
+          <div className="h-10 w-px bg-slate-200 hidden md:block" />
           <select
             value={visibilityFilter}
             onChange={(e) => setVisibilityFilter(e.target.value as any)}
-            className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+            className="px-4 py-2.5 bg-transparent border-0 focus:ring-0 text-slate-600 font-medium cursor-pointer"
           >
-            <option value="all">All Visibility</option>
-            <option value="public">Public</option>
-            <option value="private">Private</option>
+            <option value="all">Any Visibility</option>
+            <option value="public">Public Only</option>
+            <option value="private">Private Only</option>
           </select>
         </div>
       </div>
 
-      {/* Vault Items Grid */}
+      {/* Items Grid */}
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+        <div className="flex justify-center py-20">
+          <div className="w-10 h-10 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : items.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
-          <Folder className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-          <p className="text-slate-600 mb-2">No items in your vault yet</p>
-          <p className="text-sm text-slate-500">Start by adding a project, idea, or portfolio item</p>
+        <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+          <Folder className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900">No items found</h3>
+          <p className="text-slate-500 mb-6">Start documenting your journey by adding your first item.</p>
+          <Link to="/vault/create" className="text-teal-600 font-bold hover:underline">
+            + Create Item
+          </Link>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => {
-            const TypeIcon = getTypeIcon(item.item_type);
+            const { icon: Icon, color, bg } = getTypeStyles(item.item_type || 'other');
+            const isOwner = item.owner_id === profile?.id;
+
             return (
-              <div
+              <Link
                 key={item.id}
-                className="bg-white rounded-xl border border-slate-200 p-5 hover:border-teal-300 hover:shadow-md transition-all"
+                to={`/vault/${item.id}`}
+                className="group bg-white rounded-2xl border border-slate-200 p-6 hover:border-teal-400 hover:shadow-xl transition-all flex flex-col"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      item.item_type === 'project' ? 'bg-blue-100 text-blue-600' :
-                      item.item_type === 'idea' ? 'bg-amber-100 text-amber-600' :
-                      item.item_type === 'portfolio' ? 'bg-emerald-100 text-emerald-600' :
-                      item.item_type === 'note' ? 'bg-purple-100 text-purple-600' :
-                      'bg-slate-100 text-slate-600'
-                    }`}>
-                      <TypeIcon className="w-5 h-5" />
-                    </div>
-                    <span className="text-xs font-medium text-slate-500 capitalize">
-                      {item.item_type}
-                    </span>
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`p-3 rounded-xl ${bg} ${color} transition-colors`}>
+                    <Icon className="w-6 h-6" />
                   </div>
                   <div className="flex items-center gap-2">
                     {item.visibility === 'private' ? (
-                      <Lock className="w-4 h-4 text-slate-400" />
+                      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded">
+                        <Lock className="w-3 h-3" /> Private
+                      </span>
                     ) : (
-                      <Globe className="w-4 h-4 text-teal-600" />
+                      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-teal-600 bg-teal-50 px-2 py-1 rounded">
+                        <Globe className="w-3 h-3" /> Public
+                      </span>
                     )}
                   </div>
                 </div>
-                <h3 className="font-semibold text-slate-900 mb-2">{item.title}</h3>
-                {item.description && (
-                  <p className="text-sm text-slate-600 line-clamp-2 mb-3">{item.description}</p>
-                )}
-                {item.file_urls && item.file_urls.length > 0 && (
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <FileText className="w-3 h-3" />
-                    {item.file_urls.length} file{item.file_urls.length > 1 ? 's' : ''}
+
+                <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-teal-600 transition-colors">
+                  {item.title}
+                </h3>
+                
+                <p className="text-slate-600 text-sm line-clamp-2 mb-4 flex-1">
+                  {item.description || 'No description provided.'}
+                </p>
+
+                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                  <div className="flex items-center gap-2">
+                    {item.file_urls && item.file_urls.length > 0 && (
+                      <div className="flex items-center gap-1 text-xs font-medium text-slate-400">
+                        <Paperclip className="w-3 h-3" />
+                        {item.file_urls.length}
+                      </div>
+                    )}
                   </div>
-                )}
-                <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
-                  {new Date(item.created_at).toLocaleDateString()}
+                  <div className="text-[11px] font-medium text-slate-400">
+                    {isOwner ? 'Your item' : `By ${(item as any).owner?.full_name}`}
+                  </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
